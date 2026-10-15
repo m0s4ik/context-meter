@@ -1,0 +1,14 @@
+{
+  "name": "amattera-mods",
+  "description": "Mods for Claude Code by A. Mattera",
+  "owner": {
+    "name": "A. Mattera"
+  },
+  "plugins": [
+    {
+      "name": "context-meter",
+      "source": "./",
+      "description": "Context bar, cache clock, session usage and one-click Handoff above the prompt"
+    }
+  ]
+}

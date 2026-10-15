@@ -1,0 +1,23 @@
+{
+  "name": "context-meter",
+  "version": "0.12.0",
+  "description": "Context meter above the prompt: a full-width context bar, a KV-cache clock, the 5-hour session usage and a one-click Handoff (write handoff → /clear → resume).",
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "language": {
+      "type": "string",
+      "title": "Language",
+      "description": "Language of the band: auto follows Claude Code's language setting, then the system locale.",
+      "default": "auto",
+      "options": [
+        "auto",
+        "en",
+        "it"
+      ]
+    }
+  },
+  "author": {
+    "name": "A. Mattera"
+  },
+  "license": "MIT"
+}
