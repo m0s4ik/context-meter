@@ -174,3 +174,33 @@ test('con language=auto segue l’impostazione language di Claude Code', async (
   expect(JSON.stringify(await desk.drawn())).toContain('Contesto al 12%')
   await desk.unmount()
 })
+
+test('Handoff con agenti ancora attivi: niente fork, niente /clear', async ($, on) => {
+  const calls: string[] = []
+  const toasts: string[] = []
+  on('ui.render', () => EMPTY as never)
+  on('session.measure', (_$, e) => ({ changed: e.changed }))
+  on('ui.toast', (_$, e) => {
+    toasts.push(String((e as { text?: unknown }).text ?? JSON.stringify(e)))
+    return { value: undefined } as never
+  })
+  on('agent.list', () => ({ value: [
+    { id: 'a1', description: 'ricerca', type: 'general-purpose', status: 'running' },
+    { id: 'a2', description: 'vecchio', type: 'Explore', status: 'completed' },
+  ] }) as never)
+  on('model.fork', () => {
+    calls.push('fork')
+    return { value: { isAnswered: true, text: 'x', usage: {} } } as never
+  })
+  on('command.run', (_$, e) => {
+    calls.push(e.command)
+    return { text: '' } as never
+  })
+  await measure($)
+
+  const ui = await $.ui.mount({ plugin: 'context-meter', surface: 'desktop', ...BAND } as never)
+  await ui.press({ key: 'handoff' })
+  expect(calls).toEqual([])
+  expect(toasts.join(' ')).toContain('1 agent is still running')
+  await ui.unmount()
+})

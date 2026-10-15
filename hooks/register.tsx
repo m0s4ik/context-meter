@@ -183,6 +183,17 @@ async function handoff($: EngineInterface, s: Strings): Promise<void> {
     return
   }
 
+  // Background agents would be cut off by /clear, and their results would miss the handoff.
+  const active = await $.agent.list().then(
+    list => list.filter(a => a.status === 'pending' || a.status === 'running' || a.status === 'waiting').length,
+    () => 0,
+  )
+
+  if (active > 0) {
+    $.ui.toast(s.toastAgentsActive(active))
+    return
+  }
+
   try {
     await update($, phase, () => 'writing')
     $.ui.toast(s.toastStarted)

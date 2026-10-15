@@ -1,6 +1,6 @@
 {
   "name": "context-meter",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "description": "Context meter above the prompt: a full-width context bar, a KV-cache clock, the 5-hour session usage and a one-click Handoff (write handoff → /clear → resume).",
   "types": "./types/index.d.ts",
   "userConfig": {
