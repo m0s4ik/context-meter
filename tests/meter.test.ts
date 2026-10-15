@@ -204,3 +204,55 @@ test('Handoff con agenti ancora attivi: niente fork, niente /clear', async ($, o
   expect(toasts.join(' ')).toContain('1 agent is still running')
   await ui.unmount()
 })
+
+test('Handoff senza risposta: dopo 5 minuti la fascia si sblocca e la risposta tardiva è ignorata', async ($, on) => {
+  const calls: string[] = []
+  const toasts: string[] = []
+  const clock = mock.clock(on)
+  on('ui.render', () => EMPTY as never)
+  on('session.measure', (_$, e) => ({ changed: e.changed }))
+  on('ui.toast', (_$, e) => {
+    toasts.push(String((e as { text?: unknown }).text ?? JSON.stringify(e)))
+    return { value: undefined } as never
+  })
+  let release = () => {}
+  const late = new Promise<void>(r => { release = r })
+  on('model.fork', async () => {
+    await late
+    return { value: { isAnswered: true, text: 'tardi', usage: {} } } as never
+  })
+  on('command.run', (_$, e) => {
+    calls.push(e.command)
+    return { text: '' } as never
+  })
+  await measure($)
+
+  const ui = await $.ui.mount({ plugin: 'context-meter', surface: 'desktop', ...BAND } as never)
+  const pressed = ui.press({ key: 'handoff' })
+  await clock.advance(5 * 60 * 1000 + 1)
+  expect(toasts.join(' ')).toContain('5 minutes')
+  expect(await ui.find({ type: 'Button', text: 'Handoff' })).toBeDefined()
+  release()
+  await pressed
+  expect(calls).toEqual([])
+  await ui.unmount()
+})
+
+test('dopo un reload senza session.start la fascia ricarica orologio e limiti', async ($, on) => {
+  mock.clock(on)
+  mock.env(on, {})
+  on('ui.render', () => EMPTY as never)
+  on('config.list', () => ({ value: [{ key: 'language', value: 'Italiano' }] }) as never)
+  on('session.usage', () => ({ value: {
+    context: { tokens: 200000, window: 1000000, percent: 20 },
+    rateLimits: [{ kind: 'session', percent: 27, resetsAt: Date.now() + 2 * 3600_000 }],
+  } }) as never)
+  on('session.measure', (_$, e) => ({ changed: e.changed }))
+  await measure($)
+
+  const ui = await $.ui.mount({ plugin: 'context-meter', surface: 'desktop', ...BAND } as never)
+  await ui.unmount()
+  const again = await $.ui.mount({ plugin: 'context-meter', surface: 'desktop', ...BAND } as never)
+  expect(await again.find({ type: 'Text', text: '200k/1M' })).toBeDefined()
+  await again.unmount()
+})

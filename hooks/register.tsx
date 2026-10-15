@@ -178,6 +178,10 @@ export function cacheClockSvg(c: CacheInfo): string {
     + `</svg>`
 }
 
+// A fork over a very long transcript can take minutes; past this the handoff is given up.
+const FORK_TIMEOUT_MS = 5 * 60 * 1000
+let handoffRun = 0
+
 async function handoff($: EngineInterface, s: Strings): Promise<void> {
   if ((await read($, phase)) !== 'idle') {
     return
@@ -194,10 +198,24 @@ async function handoff($: EngineInterface, s: Strings): Promise<void> {
     return
   }
 
+  const id = ++handoffRun
+
   try {
     await update($, phase, () => 'writing')
     $.ui.toast(s.toastStarted)
+    // The fork takes no signal: past the limit the band frees itself and a late reply is dropped.
+    $.clock.after(FORK_TIMEOUT_MS, () => {
+      if (handoffRun === id) {
+        handoffRun++
+        $.ui.toast(s.toastTimedOut)
+        void update($, phase, () => 'idle')
+      }
+    })
     const r = await $.model.fork({ prompt: s.handoffPrompt })
+
+    if (handoffRun !== id) {
+      return
+    }
 
     if (!r.isAnswered) {
       $.ui.toast(s.toastFailed(r.reason))
@@ -216,7 +234,10 @@ async function handoff($: EngineInterface, s: Strings): Promise<void> {
   } catch (err) {
     $.ui.toast(s.toastInterrupted(err instanceof Error ? err.message : String(err)))
   } finally {
-    await update($, phase, () => 'idle')
+    if (handoffRun === id) {
+      handoffRun++
+      await update($, phase, () => 'idle')
+    }
   }
 }
 
@@ -240,18 +261,32 @@ async function resolveLang($: EngineInterface, option: unknown): Promise<void> {
   await update($, lang, () => detectLang(hints))
 }
 
-export const register: Register = (on, options) => {
-  on('session.start', async ($, e, next) => {
-    $.ui.status(undefined)
-    await resolveLang($, options.language)
-    const t = await $.clock.now()
-    await update($, cache, c => ({ ...c, now: t }))
+// Language, clock and limits for this load of the module; the band runs it too when a reload skipped session.start.
+let hydrated = false
+let ticking = false
+
+async function hydrate($: EngineInterface, option: unknown): Promise<void> {
+  hydrated = true
+  await resolveLang($, option)
+  const t = await $.clock.now()
+  await update($, cache, c => ({ ...c, now: t }))
+
+  if (!ticking) {
+    ticking = true
     $.clock.every(30_000, () => {
       void $.clock.now().then(n => update($, cache, c => ({ ...c, now: n })))
     })
-    const { context, rateLimits } = await $.session.usage()
-    await update($, fill, () => ({ tokens: context.tokens, window: context.window, percent: context.percent }))
-    await update($, limits, () => toLimits(rateLimits))
+  }
+
+  const { context, rateLimits } = await $.session.usage()
+  await update($, fill, () => ({ tokens: context.tokens, window: context.window, percent: context.percent }))
+  await update($, limits, () => toLimits(rateLimits))
+}
+
+export const register: Register = (on, options) => {
+  on('session.start', async ($, e, next) => {
+    $.ui.status(undefined)
+    await hydrate($, options.language)
 
     return next(e)
   })
@@ -304,6 +339,10 @@ export const register: Register = (on, options) => {
   }).catch(($, e, next) => next(e))
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
+    if (!hydrated) {
+      void hydrate($, options.language).catch(() => undefined)
+    }
+
     const f = await read($, fill)
 
     if (e.props.hasSurvey || f === null) {

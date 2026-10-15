@@ -26,6 +26,7 @@ export type Strings = {
   toastWaitTurn: string
   toastAlreadyWorking: string
   toastAgentsActive: (n: number) => string
+  toastTimedOut: string
   dropDuringHandoff: string
   handoffPrompt: string
   resumePrefix: string
@@ -63,6 +64,7 @@ export const EN: Strings = {
   toastWaitTurn: 'Wait for the turn to finish, then press Handoff.',
   toastAlreadyWorking: 'Claude is already working: the cache refreshes by itself.',
   toastAgentsActive: n => `${n === 1 ? '1 agent is' : `${n} agents are`} still running: wait for ${n === 1 ? 'it' : 'them'} to finish, then press Handoff.`,
+  toastTimedOut: 'Handoff gave no answer within 5 minutes: context left as it was, you can press it again.',
   dropDuringHandoff: 'Handoff in progress: the prompt was not sent, /clear would wipe it. Send it again once the session resumes.',
   handoffPrompt: `Write a handoff document to continue this work in a new conversation that will see none of this one.
 Include: goal; current state; decisions made and why; relevant files, paths, hosts and commands; what is left to do, as concrete steps; pitfalls and things already tried that don't work.
@@ -104,6 +106,7 @@ export const IT: Strings = {
   toastWaitTurn: 'Aspetta che finisca il turno, poi premi Handoff.',
   toastAlreadyWorking: 'Claude sta già lavorando: la cache si rinfresca da sola.',
   toastAgentsActive: n => `${n === 1 ? '1 agente è' : `${n} agenti sono`} ancora attiv${n === 1 ? 'o' : 'i'}: aspetta che finisca${n === 1 ? '' : 'no'}, poi premi Handoff.`,
+  toastTimedOut: 'Handoff senza risposta da 5 minuti: contesto lasciato com’è, puoi premerlo di nuovo.',
   dropDuringHandoff: 'Handoff in corso: il prompt non è stato inviato, il /clear lo cancellerebbe. Rimandalo quando la sessione riparte.',
   handoffPrompt: `Scrivi un documento di handoff per continuare questo lavoro in una conversazione nuova, che non vedrà nulla di questa.
 Includi: obiettivo; stato attuale; decisioni prese e perché; file, percorsi, host e comandi rilevanti; cosa resta da fare, come passi concreti; insidie e cose già provate che non funzionano.
